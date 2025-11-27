@@ -1,15 +1,16 @@
 import json
 import socket
+import socks
 from dataclasses import dataclass
 from dotenv import dotenv_values
 from functools import wraps
-from typing import Callable, Any, TypeVar, ParamSpec
+from typing import Callable, Any
 
 
 def require_connection(method: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(method)
-    def wrapper(self: IRCBot, *args, **kwargs) -> Any:
-        if self.socket is None:
+    def wrapper(self, *args, **kwargs) -> Any:
+        if not self.is_connected:
             raise RuntimeError(
                 "Bot is not connected to a server. Please connect to a server and try again."
             )
@@ -22,7 +23,7 @@ def require_connection(method: Callable[..., Any]) -> Callable[..., Any]:
 @dataclass
 class _BotConfig:
     """
-    Configuration class for bot this should mirror fields in config.json
+    Configuration class for bot. This should mirror fields in config.json
     which should mirror requirements from IRC specification. No other configuration should be added there.
     If other configuration options is needed use .env instead or create separate config file
 
@@ -55,11 +56,8 @@ class IRCBot:
     joining to channels, sending messages and changing channel topics
     """
 
-    _socket: socket.socket | None
-    socket_connected: socket.socket
-
     def __init__(self, proxy: bool = False):
-        self.config: _BotConfig = _BotConfig.from_json("./config")
+        self.config: _BotConfig = _BotConfig.from_json("./config.json")
 
         self.nick: str = self.config.NICK
         self.server: str = self.config.SERVER
@@ -71,22 +69,32 @@ class IRCBot:
         if proxy:
             self.proxy_server: str = self.config.PROXY_SERVER
             self.proxy_port: int = self.config.PROXY_PORT
+            self.socket = socks.socksocket()
+            self.socket.set_proxy(socks.SOCKS5, self.proxy_server, self.proxy_port)
 
-        self.socket = None
-        self._socket = None
+        else:
+            self.socket: socket.socket = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM
+            )
+
+        self.is_connected = False
+        self.is_credentials_sent = False
 
     def connect(self):
         """Connects to server specified in config"""
-
-        if self.socket is None:
-            self.socket = socket.socket()
-
         # Handle connection and set NICK and IDENT for bot
         self.socket.connect((self.server, self.port))
-        self.socket.send(f"NICK {self.nick}".encode())
-        self.socket.send(
-            f"USER {self.ident} {self.server} bla :{self.realname}\r\n".encode()
-        )
+        self.is_connected = True
+
+    def send_credentials(self):
+        self.socket.send(f"NICK {self.nick}\r\n".encode())
+        self.socket.send(f"USER {self.nick} * * :{self.nick}\r\n".encode())
+        self.is_credentials_sent = True
+
+    @require_connection
+    def pong(self, answer):
+        """Send pong to a server"""
+        self.socket.send(f"PONG :{answer}\r\n".encode())
 
     @require_connection
     def send_msg(self):
@@ -107,4 +115,5 @@ class IRCBot:
 
     @require_connection
     def receive_message(self):
-        self.socket.recv(2040)
+        msg = self.socket.recv(2040)
+        return msg.decode()
