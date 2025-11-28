@@ -1,10 +1,9 @@
 import json
 import socket
-import socks
 from dataclasses import dataclass
-from dotenv import dotenv_values
 from functools import wraps
 from typing import Callable, Any
+from src.tracking_socket import TrackingSocket
 
 
 def require_connection(method: Callable[..., Any]) -> Callable[..., Any]:
@@ -67,13 +66,14 @@ class IRCBot:
         self.chan: list[str] = self.config.CHAN
 
         if proxy:
-            self.proxy_server: str = self.config.PROXY_SERVER
-            self.proxy_port: int = self.config.PROXY_PORT
-            self.socket = socks.socksocket()
-            self.socket.set_proxy(socks.SOCKS5, self.proxy_server, self.proxy_port)
+            raise NotImplementedError
+            # self.proxy_server: str = self.config.PROXY_SERVER
+            # self.proxy_port: int = self.config.PROXY_PORT
+            # self.socket = socks.socksocket()
+            # self.socket.set_proxy(socks.SOCKS5, self.proxy_server, self.proxy_port)
 
         else:
-            self.socket: socket.socket = socket.socket(
+            self.socket: TrackingSocket = TrackingSocket(
                 socket.AF_INET, socket.SOCK_STREAM
             )
 
