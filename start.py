@@ -1,3 +1,4 @@
+import sys
 from src.bot import IRCBot
 
 
@@ -8,15 +9,17 @@ def main():
 
     while True:
         msg = bot.receive_message()
-
-        # Ignore empty messages
-        if not msg:
-            continue
-
         print(msg)
+
+        if not msg:
+            bot.reconnect(delay=30)
+
         lines = msg.split("\r\n")
         for line in lines:
-            # Handle ping-pong from IRC protocol
+            if line.startswith("ERROR"):
+                bot.close()
+                sys.exit(1)
+
             line_parts = line.split(":")
             if line_parts[0].strip() == "PING":
                 bot.pong(line_parts[1])

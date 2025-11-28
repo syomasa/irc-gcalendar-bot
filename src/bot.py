@@ -1,8 +1,10 @@
 import json
 import socket
+import time
+
 from dataclasses import dataclass
 from functools import wraps
-from typing import Callable, Any
+from typing import Callable, Any, Iterator
 from src.tracking_socket import TrackingSocket
 
 
@@ -23,8 +25,9 @@ def require_connection(method: Callable[..., Any]) -> Callable[..., Any]:
 class _BotConfig:
     """
     Configuration class for bot. This should mirror fields in config.json
-    which should mirror requirements from IRC specification. No other configuration should be added there.
-    If other configuration options is needed use .env instead or create separate config file
+    which should mirror requirements from IRC protocol (https://www.rfc-editor.org/rfc/rfc1459).
+    No other configuration should be added there. If other configuration options is needed use
+    .env instead or create separate config file
 
     NOTE: Dataclass fields here should follow ALL_CAPS convention when they are directly related to IRC specification
           Otherwise please refrain from using ALL_CAPS or set it as class level variable. Only exception to this is CHAN
@@ -77,19 +80,44 @@ class IRCBot:
                 socket.AF_INET, socket.SOCK_STREAM
             )
 
-        self.is_connected = False
-        self.is_credentials_sent = False
+        self.is_connected: bool = False
+        self.is_credentials_sent: bool = False
+        self.reconnect_delays = iter([60, 300, 3600])  # in seconds
 
     def connect(self):
-        """Connects to server specified in config"""
+        """Connects to server specified in config.json"""
         # Handle connection and set NICK and IDENT for bot
         self.socket.connect((self.server, self.port))
         self.is_connected = True
 
     def send_credentials(self):
+        """
+        Sends necessary NICK and USER fields to a server.
+        More information can be found from IRC protocol (https://www.rfc-editor.org/rfc/rfc1459)
+        """
         self.socket.send(f"NICK {self.nick}\r\n".encode())
         self.socket.send(f"USER {self.nick} * * :{self.nick}\r\n".encode())
-        self.is_credentials_sent = True
+
+    def reconnect(self, delay: int = 30):
+        """
+        Closes the previous socket. Creates new one before trying to reconnect server.
+        This should be only called when server closes the connection without giving proper
+        ERROR message.
+
+        param delay: int - Specifies how many seconds bot waits after connection is closed
+                           before trying to create new socket and connect to a server.
+        """
+
+        self.close()
+        time.sleep(delay)
+        self.socket = TrackingSocket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connect()
+        self.send_credentials()
+
+    def close(self):
+        """Closes the bot socket and updates connection status"""
+        self.socket.close()
+        self.is_connected = False
 
     @require_connection
     def pong(self, answer):
@@ -103,13 +131,15 @@ class IRCBot:
 
     @require_connection
     def change_topic(self):
-        """Changes channel topic. Requires bot to have permissions to do so"""
+        """
+        Changes channel topic. Requires bot to have permissions to do so
+        and bot must be connected to a server.
+        """
         pass
 
     @require_connection
     def join_channel(self):
-        """Joins channel specified in .env"""
-
+        """Joins channel specified in config.json"""
         for chan in self.chan:
             self.socket.send(f"JOIN :{chan}\r\n".encode())
 
