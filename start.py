@@ -14,7 +14,7 @@ def main():
         print(msg)
 
         if not msg:
-            bot.reconnect(delay=30)
+            bot.reconnect()
 
         lines = msg.split("\r\n")
         for line in lines:

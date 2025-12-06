@@ -3,7 +3,6 @@ import copy
 from typing import Iterator
 
 
-
 class ReconnectDelayUtility:
     """
     Utility class for managing the reconnection delays.
@@ -59,4 +58,5 @@ class ReconnectDelayUtility:
         """
 
         self._start_timer()
+        self.retry_attempts += 1
         return next(self._delay_iterator, -1)

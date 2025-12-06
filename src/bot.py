@@ -1,10 +1,12 @@
 import json
 import socket
+import sys
 import time
 
 from dataclasses import dataclass
 from functools import wraps
 from typing import Callable, Any, Iterator
+from src.delay_utility import ReconnectDelayUtility
 from src.tracking_socket import TrackingSocket
 
 
@@ -82,7 +84,7 @@ class IRCBot:
 
         self.is_connected: bool = False
         self.is_credentials_sent: bool = False
-        self.reconnect_delays = iter([60, 300, 3600])  # in seconds
+        self.reconnect_util: ReconnectDelayUtility = ReconnectDelayUtility()
 
     def connect(self):
         """Connects to server specified in config.json"""
@@ -98,15 +100,28 @@ class IRCBot:
         self.socket.send(f"NICK {self.nick}\r\n".encode())
         self.socket.send(f"USER {self.nick} * * :{self.nick}\r\n".encode())
 
-    def reconnect(self, delay: int = 30):
+    def reconnect(self):
         """
         Closes the previous socket. Creates new one before trying to reconnect server.
         This should be only called when server closes the connection without giving proper
-        ERROR message.
+        ERROR message. If reconnection still fails after N tries specified in ReconnectDelayUtility bot will close
+        default is 60s, 5min and 1h.
 
         param delay: int - Specifies how many seconds bot waits after connection is closed
                            before trying to create new socket and connect to a server.
         """
+
+        delay = self.reconnect_util.get_next_delay()
+        if delay == -1:
+            print(
+                f"Bot failed to reconnect after {self.reconnect_util.retry_attempts} tries.",
+                "Closing...",
+                file=sys.stderr,
+            )
+
+            self.close()
+            self.reconnect_util.stop_timer()
+            sys.exit(1)
 
         self.close()
         time.sleep(delay)
