@@ -3,6 +3,7 @@ import socket
 import sys
 import time
 
+from pydantic import BaseModel
 from dataclasses import dataclass
 from functools import wraps
 from typing import Callable, Any, Iterator
@@ -23,15 +24,14 @@ def require_connection(method: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-@dataclass
-class _BotConfig:
+class _BotConfig(BaseModel):
     """
     Configuration class for bot. This should mirror fields in config.json
     which should mirror requirements from IRC protocol (https://www.rfc-editor.org/rfc/rfc1459).
     No other configuration should be added there. If other configuration options is needed use
     .env instead or create separate config file
 
-    NOTE: Dataclass fields here should follow ALL_CAPS convention when they are directly related to IRC specification
+    NOTE: Fields here should follow ALL_CAPS convention when they are directly related to IRC specification
           Otherwise please refrain from using ALL_CAPS or set it as class level variable. Only exception to this is CHAN
           which is defined as list of strings instead of just string,
           because this makes it simpler to manage joining to multiple channels
