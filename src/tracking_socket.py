@@ -1,9 +1,13 @@
 import socket
-import sys
+import logging
 
 
 class TrackingSocket(socket.socket):
     """Adds monitoring and tracking of outgoing messages sent by socket"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._logger: logging.Logger = logging.getLogger("irc-bot")
 
     def send(self, data, *args, **kwargs):
         chunk = data[:512]
@@ -11,9 +15,9 @@ class TrackingSocket(socket.socket):
             chunk = chunk.decode("utf-8", errors="replace")
         except Exception as e:
             chunk = repr(chunk)
-            sys.stderr.write(f"Warning!: Decode failed, falling back to repr - {e}\n")
+            self._logger.warning(
+                "Warning!: Decode failed, falling back to repr", f"Error: {e}"
+            )
 
-        sys.stdout.write(f">> {chunk}\n")
-        sys.stdout.flush()
-
+        self._logger.info(f"SENT >> {chunk}")
         return super().send(data, *args, **kwargs)

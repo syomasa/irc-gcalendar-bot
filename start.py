@@ -1,8 +1,6 @@
 import sys
 from src.bot import IRCBot
 
-import sys
-
 
 def main():
     bot = IRCBot()

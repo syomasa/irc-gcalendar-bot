@@ -1,12 +1,12 @@
 import json
+import logging
 import socket
 import sys
 import time
 
 from pydantic import BaseModel
-from dataclasses import dataclass
 from functools import wraps
-from typing import Callable, Any, Iterator
+from typing import Callable, Any
 from src.delay_utility import ReconnectDelayUtility
 from src.tracking_socket import TrackingSocket
 
@@ -82,6 +82,7 @@ class IRCBot:
                 socket.AF_INET, socket.SOCK_STREAM
             )
 
+        self._logger: logging.Logger = logging.getLogger("irc-bot")
         self.is_connected: bool = False
         self.is_credentials_sent: bool = False
         self.reconnect_util: ReconnectDelayUtility = ReconnectDelayUtility()
