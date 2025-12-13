@@ -1,6 +1,8 @@
 import socket
 import logging
 
+socket_logger = logging.getLogger("bot.Socket")
+
 
 class TrackingSocket(socket.socket):
     """Adds monitoring and tracking of outgoing messages sent by socket"""
