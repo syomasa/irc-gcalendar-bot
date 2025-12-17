@@ -1,8 +1,40 @@
+"""
+Module for handling logging related classes and functions
+
+Style guide: when creating initialize function for logger make sure you add
+             extra formatter fields in docstring and explain what they do.
+             and follow naming convention where each initializer is marked as private
+             and starts with initialize keyword e.g _initialize_socket_logger
+
+Other conventions: All loggers created here should have some kind of base parent for example
+                   if logger is focusing on specific behavior of bot name of logger should
+                   be in following pattern "bot.<loggable_feature>". This also services
+                   technical purpose because all children of parent propagate back to
+                   parent logger (more information: https://docs.python.org/3/library/logging.html)
+"""
+
 import logging
 
 
 def _initialize_socket_logger() -> logging.Logger:
-    pass
+    """
+    Logger for tracking socket trafic.
+
+    extra formatter fields:
+        %(trafic_direction): Shows if socket receives (RECEIVED <<<) or sends message (SENT >>>)
+    """
+
+    logger = logging.getLogger("bot.socket")
+
+    formatter = logging.Formatter(
+        "[%(asctime)s][%(name)s] %(trafic_direction)s %(message)s"
+    )
+
+    ch = logging.StreamHandler()
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    return logger
 
 
 class LoggerManager:
@@ -24,6 +56,8 @@ class LoggerManager:
     def __init__(self):
         self._loggers = {
             # Add name of the logger and its initialization function here
+            # initialization function is can be any kind of function but must return
+            # logging.Logger object
             "socket": _initialize_socket_logger()
         }
 
