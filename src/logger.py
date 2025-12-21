@@ -11,11 +11,17 @@ Other conventions: All loggers created here should have some kind of base parent
                    be in following pattern "bot.<loggable_feature>". This also services
                    technical purpose because all children of parent propagate back to
                    parent logger (more information: https://docs.python.org/3/library/logging.html)
+
+                   Additionally all initialization functions must be cached via @functools.cache or
+                   @functools.lru_cache(max_size=...) decorators. To ensure that they are ran only once
+                   during runtime and avoid duplicate handlers in loggers
 """
 
 import logging
+from functools import cache
 
 
+@cache  # Make this function only run once subsequent calls only return result of first call
 def _initialize_socket_logger() -> logging.Logger:
     """
     Logger for tracking socket trafic.
