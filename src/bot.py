@@ -13,7 +13,7 @@ from src.tracking_socket import TrackingSocket
 
 def require_connection(method: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(method)
-    def wrapper(self, *args, **kwargs) -> Any:
+    def wrapper(self: IRCBot, *args, **kwargs) -> Any:
         if not self.is_connected:
             raise RuntimeError(
                 "Bot is not connected to a server. Please connect to a server and try again."
