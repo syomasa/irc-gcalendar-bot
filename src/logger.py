@@ -27,13 +27,13 @@ def _initialize_socket_logger() -> logging.Logger:
     Logger for tracking socket trafic.
 
     extra formatter fields:
-        %(trafic_direction): Shows if socket receives (RECEIVED <<<) or sends message (SENT >>>)
+        %(traffic_direction): Shows if socket receives (RECEIVED <<<) or sends message (SENT >>>)
     """
 
     logger = logging.getLogger("bot.socket")
 
     formatter = logging.Formatter(
-        "[%(asctime)s][%(name)s] %(trafic_direction)s %(message)s"
+        "[%(asctime)s][%(name)s] %(traffic_direction)s %(message)s"
     )
 
     ch = logging.StreamHandler()
@@ -62,7 +62,7 @@ class LoggerManager:
     def __init__(self):
         self._loggers = {
             # Add name of the logger and its initialization function here
-            # initialization function is can be any kind of function but must return
+            # initialization function can be any kind of callable but must return
             # logging.Logger object
             "socket": _initialize_socket_logger()
         }
