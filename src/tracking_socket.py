@@ -5,17 +5,18 @@ from typing import Literal, TypeAlias
 from collections.abc import Buffer
 from src.logger import LoggerManager
 
-# This can also be found from _typeshed module but just to prevent potential changes
-# to type defined there we define it here instead. This way we can guarantee that ReadableBuffer
+# This can also be found from _typeshed module but to prevent potential changes in unstable API
+# type is  defined here. This way we can guarantee that ReadableBuffer
 # refers indeed Buffer type. If you later on want to change the definition please refer
 # to https://github.com/python/typeshed/tree/main/stdlib/_typeshed
 # and https://github.com/python/typeshed/blob/main/stdlib/_typeshed/__init__.pyi
+# for more context how this could be defined.
 ReadableBuffer: TypeAlias = Buffer
 
 
 def _first_n_bytes(payload: ReadableBuffer, n: int) -> bytes:
     """
-    Helper function which returns n bytes from payload.
+    Helper function which returns the first n bytes from payload.
     This should work on any object which implements Buffer protocol
     """
 
@@ -24,7 +25,10 @@ def _first_n_bytes(payload: ReadableBuffer, n: int) -> bytes:
 
 
 class TrackingSocket(socket.socket):
-    """Adds monitoring and tracking of outgoing messages sent by socket"""
+    """
+    Adds monitoring and tracking of incoming and outgoing
+    messages sent/received by socket
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -46,7 +50,9 @@ class TrackingSocket(socket.socket):
             except UnicodeDecodeError as e:
                 msg = repr(chunk)
                 self._socket_logger.warning(
-                    "Warning!: Decode failed, falling back to repr", f"Error: {e}"
+                    "Warning!: Decode failed, falling back to repr",
+                    f"Error: {e}",
+                    extra={"traffic_direction": ""},
                 )
         else:
             msg = repr(chunk)
@@ -64,13 +70,30 @@ class TrackingSocket(socket.socket):
         *,
         logging_decode: bool = False,
     ) -> int:
+        """
+        Extends normal socket.send functionality to include logging
+
+        param bool logging_decode: Tells whatever logged message needs to be decoded into human readable format
+                                   this is quite useful when you know content sent is text content.
+        """
+
+        bytes_sent: int = super().send(data, flags)
+        sent_data = _first_n_bytes(data, n=bytes_sent)
         if not self._supress_send_logging:
-            self._log_traffic(data, "out", decode=logging_decode)
-        return super().send(data, flags)
+            self._log_traffic(sent_data, "out", decode=logging_decode)
+
+        return bytes_sent
 
     def sendall(
         self, data: ReadableBuffer, flags: int = 0, /, *, logging_decode: bool = False
     ) -> None:
+        """
+        See socket.sendall for full details. Similarily to self.send(...) extends functionality
+        by logging outgoing traffic.
+
+        param bool logging_decode: See self.send(...).
+        """
+
         self._supress_send_logging = True
         self._log_traffic(data, "out", decode=logging_decode)
         try:
