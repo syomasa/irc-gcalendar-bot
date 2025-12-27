@@ -91,7 +91,7 @@ class TrackingSocket(socket.socket):
         See socket.sendall for full details. Similarily to self.send(...) extends functionality
         by logging outgoing traffic.
 
-        param bool logging_decode: See self.send(...).
+        param bool logging_decode: Same as in self.send(...).
         """
 
         self._supress_send_logging = True
@@ -100,3 +100,16 @@ class TrackingSocket(socket.socket):
             super().sendall(data, flags)
         finally:
             self._supress_send_logging = False
+
+    def recv(
+        self, bufsize: int, flags: int = 0, /, *, logging_decode: bool = False
+    ) -> bytes:
+        """
+        Similarily to self.sendall(...) and self.send(...) extends behavior to
+        include logging on received messages. See socket.recv(...) for full behaviro
+
+        param bool logging_decode: Same as in self.send(...).
+        """
+        received_message: bytes = super().recv(bufsize, flags)
+        self._log_traffic(received_message, "in", decode=logging_decode)
+        return received_message
