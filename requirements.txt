@@ -1,25 +1,5 @@
 annotated-types==0.7.0
-black==25.11.0
-click==8.3.1
-docstring-to-markdown==0.17
-importlib_metadata==8.7.0
-jedi==0.19.2
-mypy_extensions==1.1.0
-nodeenv==1.9.1
-packaging==25.0
-parso==0.8.5
-pathspec==0.12.1
-platformdirs==4.5.0
-pluggy==1.6.0
 pydantic==2.12.5
 pydantic_core==2.41.5
-PySocks==1.7.1
-python-dotenv @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_python-dotenv_1761503229/work
-python-lsp-jsonrpc==1.1.2
-python-lsp-server==1.13.2
-pytokens==0.3.0
-ruff==0.14.7
 typing-inspection==0.4.2
 typing_extensions==4.15.0
-ujson==5.11.0
-zipp==3.23.0

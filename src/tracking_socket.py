@@ -1,17 +1,39 @@
+from __future__ import (
+    annotations,
+)  # Keep this for compatibility with 3.11 or older
+
 import socket
 import logging
+import sys
 
-from typing import Literal, TypeAlias
-from collections.abc import Buffer
+from typing import TYPE_CHECKING
+
+# from collections.abc import Buffer # Use this if you are using newer python version 3.12+
 from src.logger import LoggerManager
 
-# This can also be found from _typeshed module but to prevent potential changes in unstable API
-# type is  defined here. This way we can guarantee that ReadableBuffer
-# refers indeed Buffer type. If you later on want to change the definition please refer
-# to https://github.com/python/typeshed/tree/main/stdlib/_typeshed
-# and https://github.com/python/typeshed/blob/main/stdlib/_typeshed/__init__.pyi
-# for more context how this could be defined.
-ReadableBuffer: TypeAlias = Buffer
+if TYPE_CHECKING:
+    from typing import TypeAlias, Literal
+
+    if sys.version_info >= (3, 12):
+        # From python 3.12+ onwards
+        from collections.abc import Buffer
+
+    else:
+        # For python 3.11
+        from typing_extensions import Buffer
+
+    # This can also be found from _typeshed module but to prevent potential changes in unstable API
+    # type is  defined here. This way we can guarantee that ReadableBuffer
+    # refers indeed Buffer type. If you later on want to change the definition please refer
+    # to https://github.com/python/typeshed/tree/main/stdlib/_typeshed
+    # and https://github.com/python/typeshed/blob/main/stdlib/_typeshed/__init__.pyi
+    # for more context how this could be defined.
+
+    # Additional note after 3.12+
+    # TypeAlias (https://docs.python.org/3/library/typing.html#typing.TypeAlias)
+    # is deprecated. So if later on support for 3.11. is dropped favor more modern syntax
+    # type ReadableBuffer = Buffer
+    ReadableBuffer: TypeAlias = Buffer
 
 
 def _first_n_bytes(payload: ReadableBuffer, n: int) -> bytes:
