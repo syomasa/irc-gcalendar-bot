@@ -38,6 +38,7 @@ def _initialize_socket_logger() -> logging.Logger:
 
     ch = logging.StreamHandler()
     ch.setFormatter(formatter)
+    logger.setLevel(logging.INFO)
     logger.addHandler(ch)
 
     return logger

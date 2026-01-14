@@ -6,14 +6,20 @@ import time
 
 from pydantic import BaseModel
 from functools import wraps
-from typing import Callable, Any
+from typing import Callable, Any, TypeVar
 from src.delay_utility import ReconnectDelayUtility
 from src.tracking_socket import TrackingSocket
 
 
-def require_connection(method: Callable[..., Any]) -> Callable[..., Any]:
+# required for python 3.11. in later versions
+# more modern syntax can be utilized in function definitions
+# e.g def func[T](method: Callable[..., T]) -> T
+T = TypeVar("T")
+
+
+def require_connection(method: Callable[..., T]) -> Callable[..., T]:
     @wraps(method)
-    def wrapper(self: IRCBot, *args, **kwargs) -> Any:
+    def wrapper(self: "IRCBot", *args, **kwargs):
         if not self.is_connected:
             raise RuntimeError(
                 "Bot is not connected to a server. Please connect to a server and try again."
@@ -98,8 +104,8 @@ class IRCBot:
         Sends necessary NICK and USER fields to a server.
         More information can be found from IRC protocol (https://www.rfc-editor.org/rfc/rfc1459)
         """
-        self.socket.send(f"NICK {self.nick}\r\n".encode())
-        self.socket.send(f"USER {self.nick} * * :{self.nick}\r\n".encode())
+        self.socket.sendall(f"NICK {self.nick}\r\n".encode())
+        self.socket.sendall(f"USER {self.nick} * * :{self.nick}\r\n".encode())
 
     def reconnect(self):
         """
@@ -108,7 +114,7 @@ class IRCBot:
         ERROR message. If reconnection still fails after N tries specified in ReconnectDelayUtility bot will close
         default is 60s, 5min and 1h.
 
-        param delay: int - Specifies how many seconds bot waits after connection is closed
+        param int delay - Specifies how many seconds bot waits after connection is closed
                            before trying to create new socket and connect to a server.
         """
 
@@ -138,7 +144,7 @@ class IRCBot:
     @require_connection
     def pong(self, answer):
         """Send pong to a server"""
-        self.socket.send(f"PONG :{answer}\r\n".encode())
+        self.socket.sendall(f"PONG :{answer}\r\n".encode())
 
     @require_connection
     def send_msg(self):
@@ -154,12 +160,24 @@ class IRCBot:
         pass
 
     @require_connection
-    def join_channel(self):
-        """Joins channel specified in config.json"""
+    def join_channels(self):
+        """Joins channels specified in config.json"""
         for chan in self.chan:
-            self.socket.send(f"JOIN :{chan}\r\n".encode())
+            self.socket.sendall(f"JOIN :{chan}\r\n".encode())
 
     @require_connection
-    def receive_message(self):
-        msg = self.socket.recv(2040)
-        return msg.decode()
+    def receive_message(self) -> bytes:
+        msg = self.socket.recv(2040, logging_decode=False)
+        return msg
+
+    @require_connection
+    def is_operator(self, channel: str) -> bool:
+        """
+        Utility for querying if bot has operator rights
+        on specific channel
+
+        NOTE: This cannot be used to query if bot has connected to a specific channel
+              This will return false if bot is not on channel
+        """
+
+        raise NotImplemented
