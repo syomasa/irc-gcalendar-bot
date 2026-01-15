@@ -11,7 +11,7 @@ from src.delay_utility import ReconnectDelayUtility
 from src.tracking_socket import TrackingSocket
 
 
-# required for python 3.11. in later versions
+# required for python 3.11. In later versions
 # more modern syntax can be utilized in function definitions
 # e.g def func[T](method: Callable[..., T]) -> T
 T = TypeVar("T")
@@ -171,13 +171,12 @@ class IRCBot:
         return msg
 
     @require_connection
-    def is_operator(self, channel: str) -> bool:
+    def query_who(self, channel: str) -> None:
         """
-        Utility for querying if bot has operator rights
-        on specific channel
+        Utility for querying server with WHO command
+        requires name of the channel
 
-        NOTE: This cannot be used to query if bot has connected to a specific channel
-              This will return false if bot is not on channel
+        NOTE: this method returns None you must handle parsing
+        response separately
         """
-
-        raise NotImplemented
+        self.socket.sendall(f"WHO {channel}\r\n".encode("utf-8"))

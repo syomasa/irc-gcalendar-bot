@@ -1,4 +1,5 @@
 import sys
+import time
 from src.bot import IRCBot
 
 
@@ -44,6 +45,12 @@ def main():
                 if response_code == "001":
                     # Join channels only after receiving welcome ("001")
                     bot.join_channels()
+                    bot.query_who("#googcaltop-devel")
+
+                if response_code == "352":
+                    # parse WHO response based on RFC2812
+                    print("I received WHO response")
+                    print(line_split)
 
             if line.startswith("ERROR"):
                 bot.close()
