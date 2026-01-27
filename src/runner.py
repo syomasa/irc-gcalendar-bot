@@ -1,4 +1,25 @@
+from collections.abc import Callable
 from src.client import IRCClient
+
+from functools import wraps
+from typing import ParamSpec, TypeVar
+
+T = TypeVar("T", covariant=True)
+P = ParamSpec("P")
+
+
+def on_response(response_code: str):
+    def decor_wrapper(func: Callable[P, T]) -> Callable[P, T | None]:
+        @wraps(func)
+        def func_wrapper(*args: P.args, **kwargs: P.kwargs):
+            if len(args) > 1 and args[1] == response_code:
+                return func(*args, **kwargs)
+
+            return None
+
+        return func_wrapper
+
+    return decor_wrapper
 
 
 class BotRunner:
@@ -25,18 +46,30 @@ class BotRunner:
     def _parse_msg(self):
         pass
 
-    def _handle_ping(self):
+    @on_response("PING")
+    def _handle_ping(self, msg: str) -> None:
+        # TODO: Parse answer from msg
+
+        answer: str = ""
+        self.client.pong(answer)
+
+    def _handle_who(self, msg: str) -> None:
         raise NotImplemented
 
-    def _handle_who(self):
+    def _handle_welcome(self, msg: str) -> None:
         raise NotImplemented
 
-    def _handle_welcome(self):
-        raise NotImplemented
-
-    def run_forever(self) -> None:
+    def run_forever(self, msg: str) -> None:
         """
         Starts main bot loop. Loop ends when exit condition is met
         (TODO: determine exit condition)
         """
-        pass
+
+        tmp = ""
+        self._handle_ping(tmp)
+        self._handle_welcome(tmp)
+        self._handle_who(tmp)
+
+    @on_response("001")
+    def test_msg(self, msg: str) -> None:
+        print(msg)

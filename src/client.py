@@ -6,7 +6,7 @@ import time
 
 from pydantic import BaseModel
 from functools import wraps
-from typing import Callable, TypeVar
+from typing import Callable, ParamSpec, TypeVar, Concatenate
 from src.delay_utility import ReconnectDelayUtility
 from src.tracking_socket import TrackingSocket
 
@@ -15,11 +15,14 @@ from src.tracking_socket import TrackingSocket
 # more modern syntax can be utilized in function definitions
 # e.g def func[T](method: Callable[..., T]) -> T
 T = TypeVar("T")
+P = ParamSpec("P")
 
 
-def require_connection(method: Callable[..., T]) -> Callable[..., T]:
+def require_connection(
+    method: Callable[Concatenate["IRCClient", P], T],
+) -> Callable[Concatenate["IRCClient", P], T]:
     @wraps(method)
-    def wrapper(self: "IRCClient", *args, **kwargs):
+    def wrapper(self: "IRCClient", *args: P.args, **kwargs: P.kwargs):
         if not self.is_connected:
             raise RuntimeError(
                 "Bot is not connected to a server. Please connect to a server and try again."
@@ -142,7 +145,7 @@ class IRCClient:
         self.is_connected = False
 
     @require_connection
-    def pong(self, answer):
+    def pong(self, answer: str):
         """Send pong to a server"""
         self.socket.sendall(f"PONG :{answer}\r\n".encode())
 
