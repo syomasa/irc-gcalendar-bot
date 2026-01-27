@@ -1,18 +1,26 @@
 import sys
-import time
-from src.bot import IRCBot
+from src.runner import BotRunner
+from src.client import IRCClient
+
+
+def main_new():
+    raise NotImplemented
+    client = IRCClient()
+    runner = BotRunner(client)
+
+    runner.run_forever()
 
 
 def main():
-    bot = IRCBot()
-    bot.connect()
-    bot.send_credentials()
+    client = IRCClient()
+    client.connect()
+    client.send_credentials()
     # bot.join_channels()
 
     while True:
-        msg = bot.receive_message().decode("utf-8")
+        msg = client.receive_message().decode("utf-8")
         if not msg:
-            bot.reconnect()
+            client.reconnect()
 
         lines = msg.split("\r\n")
         for line in lines:
@@ -20,7 +28,7 @@ def main():
 
             # Handle PING message from server
             if line_split[0].strip() == "PING":
-                bot.pong(line_split[1])
+                client.pong(line_split[1])
 
             # Extract metadata and handle different server replies
             try:
@@ -44,8 +52,8 @@ def main():
                 # Add here how you want to handle different server replies
                 if response_code == "001":
                     # Join channels only after receiving welcome ("001")
-                    bot.join_channels()
-                    bot.query_who("#googcaltop-devel")
+                    client.join_channels()
+                    client.query_who("#googcaltop-devel")
 
                 if response_code == "352":
                     # parse WHO response based on RFC2812
@@ -53,7 +61,7 @@ def main():
                     print(line_split)
 
             if line.startswith("ERROR"):
-                bot.close()
+                client.close()
                 sys.exit(1)
 
 

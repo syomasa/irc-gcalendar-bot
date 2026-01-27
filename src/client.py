@@ -6,7 +6,7 @@ import time
 
 from pydantic import BaseModel
 from functools import wraps
-from typing import Callable, Any, TypeVar
+from typing import Callable, TypeVar
 from src.delay_utility import ReconnectDelayUtility
 from src.tracking_socket import TrackingSocket
 
@@ -19,7 +19,7 @@ T = TypeVar("T")
 
 def require_connection(method: Callable[..., T]) -> Callable[..., T]:
     @wraps(method)
-    def wrapper(self: "IRCBot", *args, **kwargs):
+    def wrapper(self: "IRCClient", *args, **kwargs):
         if not self.is_connected:
             raise RuntimeError(
                 "Bot is not connected to a server. Please connect to a server and try again."
@@ -60,7 +60,7 @@ class _BotConfig(BaseModel):
         return cls(**data)
 
 
-class IRCBot:
+class IRCClient:
     """
     Handles all common IRC operations such connection to a server,
     joining to channels, sending messages and changing channel topics
