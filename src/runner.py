@@ -8,10 +8,33 @@ T = TypeVar("T", covariant=True)
 P = ParamSpec("P")
 
 
+def _on_ping(func: Callable[P, T]) -> Callable[P, T | None]:
+    @wraps(func)
+    def _wrapper(*args: P.args, **kwargs: P.kwargs):
+        # Similarily to _on_response requires two args args[0] instance (self) and msg (str)
+        if len(args) < 2:
+            return None
+
+        if not isinstance(args[1], str):
+            raise TypeError(
+                f"Args[1] is expected to be string but got {type(args[1])} instead"
+            )
+
+        if args[1].startswith("PING"):
+            return func(*args, **kwargs)
+
+        return None
+
+    return _wrapper
+
+
 def _on_response(target_response_code: str):
     """
     Decorator factory responsible of constructing decorators
     which can be hooked into a arbittuary event (for irc specific numerics/events check RFC2812)
+
+    NOTE: This can be used with any normal message from server except PING don't use this to
+          handle ping but instead handle it with its own decorator (@_on_ping)
     """
 
     def decor_wrapper(func: Callable[P, T]) -> Callable[P, T | None]:
@@ -70,12 +93,18 @@ class BotRunner:
         self.client.connect()
         self.client.send_credentials()
 
-    @_on_response("PING")
+    @_on_ping
     def _handle_ping(self, msg: str) -> None:
-        # TODO: Parse answer from msg
+        """
+        Handles answering to PING messages from server.
 
-        answer: str = ""
-        self.client.pong(answer)
+        NOTE: to register this don't use @_on_response(...) it is meant to handle standard messages
+              with format <prefix> <command> <params> but ping format uses "PING <server_id>"
+              format instead. Use @_on_ping decorator instead
+        """
+
+        server_id = msg.split(":")[1]
+        self.client.pong(server_id)
 
     @_on_response("352")  # numeric of WHO is 352
     def _handle_who(self, msg: str) -> None:
@@ -85,13 +114,21 @@ class BotRunner:
     def _handle_welcome(self, msg: str) -> None:
         raise NotImplemented
 
-    def run_forever(self, msg: str) -> None:
+    def run_forever(self) -> None:
         """
         Starts main bot loop. Loop ends when exit condition is met
         (TODO: determine exit condition)
         """
 
-        tmp = ""
-        self._handle_ping(tmp)
-        self._handle_welcome(tmp)
-        self._handle_who(tmp)
+        self._initialize_connection()
+
+        while True:
+            raw_msg: bytes = self.client.receive_message()
+            msg: str = raw_msg.decode(encoding="utf-8")
+
+            if not msg:
+                self.client.reconnect()
+
+            self._handle_ping(msg)
+            self._handle_welcome(msg)
+            self._handle_who(msg)
