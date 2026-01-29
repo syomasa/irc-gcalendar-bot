@@ -2,7 +2,7 @@ from collections.abc import Callable
 from src.client import IRCClient
 
 from functools import wraps
-from typing import ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar, Generator
 
 T = TypeVar("T", covariant=True)
 P = ParamSpec("P")
@@ -33,8 +33,8 @@ def _on_response(target_response_code: str):
     Decorator factory responsible of constructing decorators
     which can be hooked into a arbittuary event (for irc specific numerics/events check RFC2812)
 
-    NOTE: This can be used with any normal message from server except PING don't use this to
-          handle ping but instead handle it with its own decorator (@_on_ping)
+    NOTE: This can be used with any normal message from server except PING.
+          Handle ping with its own decorator (@_on_ping)
     """
 
     def decor_wrapper(func: Callable[P, T]) -> Callable[P, T | None]:
@@ -53,7 +53,7 @@ def _on_response(target_response_code: str):
                 )
 
             msg: str = args[1]
-            response_code: str = _MessageParser.get_response_code(args[1])
+            response_code: str = _MessageParser.get_response_code(msg)
             if response_code == target_response_code:
                 return func(*args, **kwargs)
 
@@ -66,11 +66,20 @@ def _on_response(target_response_code: str):
 
 class _MessageParser:
     @staticmethod
-    def get_response_code(msg: str):
-        raise NotImplemented
+    def get_response_code(msg: str) -> str:
+        msg = msg.strip()
+        if not msg.startswith(":"):
+            return ""
 
-    def parse_lines(self, msg: bytes):
-        raise NotImplemented
+        parts = msg.split(" ", maxsplit=2)
+        return parts[1] if len(parts) > 1 else ""
+
+    @staticmethod
+    def parse_lines(msg: bytes) -> Generator[str, str, None]:
+        msg_decoded: str = msg.decode("utf-8")
+
+        for line in msg_decoded.split("\r\n"):
+            yield line
 
 
 class BotRunner:
@@ -108,11 +117,11 @@ class BotRunner:
 
     @_on_response("352")  # numeric of WHO is 352
     def _handle_who(self, msg: str) -> None:
-        raise NotImplemented
+        print("WHO received")
 
     @_on_response("001")  # numeric of Welcome is 001
     def _handle_welcome(self, msg: str) -> None:
-        raise NotImplemented
+        print("WELCOME received")
 
     def run_forever(self) -> None:
         """
@@ -129,6 +138,7 @@ class BotRunner:
             if not msg:
                 self.client.reconnect()
 
-            self._handle_ping(msg)
-            self._handle_welcome(msg)
-            self._handle_who(msg)
+            for line in _MessageParser.parse_lines(raw_msg):
+                self._handle_ping(line)
+                self._handle_welcome(line)
+                self._handle_who(line)
