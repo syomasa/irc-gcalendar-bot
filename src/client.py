@@ -189,5 +189,12 @@ class IRCClient:
         self.socket.sendall(f"WHO {channel}\r\n".encode("utf-8"))
 
     @require_connection
+    def query_self(self) -> None:
+        """
+        Send WHOIS query about client to the socket
+        """
+        self.socket.sendall(f"WHOIS {self.nick}\r\n".encode("utf-8"))
+
+    @require_connection
     def set_op_state(self, channel: str, value: bool):
         self.op_state[channel] = value

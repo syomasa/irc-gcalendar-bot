@@ -1,8 +1,9 @@
 from collections.abc import Callable
 from src.client import IRCClient
+from src.parsing import MessageParser
 
 from functools import wraps
-from typing import ParamSpec, TypeVar, Generator
+from typing import ParamSpec, TypeVar
 
 T = TypeVar("T", covariant=True)
 P = ParamSpec("P")
@@ -53,7 +54,7 @@ def _on_response(target_response_code: str):
                 )
 
             msg: str = args[1]
-            response_code: str = _MessageParser.get_response_code(msg)
+            response_code: str = MessageParser.get_response_code(msg)
             if response_code == target_response_code:
                 return func(*args, **kwargs)
 
@@ -62,55 +63,6 @@ def _on_response(target_response_code: str):
         return func_wrapper
 
     return decor_wrapper
-
-
-class _MessageParser:
-    @staticmethod
-    def get_response_code(msg: str) -> str:
-        msg = msg.strip()
-        if not msg.startswith(":"):
-            return ""
-
-        parts = msg.split(" ", maxsplit=2)
-        return parts[1] if len(parts) > 1 else ""
-
-    @staticmethod
-    def parse_lines(msg: bytes) -> Generator[str, str, None]:
-        msg_decoded: str = msg.decode("utf-8")
-
-        for line in msg_decoded.split("\r\n"):
-            yield line
-
-    @staticmethod
-    def get_mode_data(msg) -> tuple[tuple[str, str, str], str | None]:
-        """
-        Utility for obtaining information about MODE response.
-        returns tuple with 3 elements where:
-            0: channel where MODE was changed
-            1: what mode was added or removed (check RFC2812 for more information)
-            2: parameter attached to a flag, in case +o this is username,
-                some commands take no parameters like +s/-s then function returns empty string
-            3: error this is None if otherwise string telling reason.
-
-        Additionally functions returns error which is None on valid message and
-        error message if not.
-
-        NOTE: This method assumes that MODE response code is already received
-              so we are only parsing already valid MODE response
-        """
-        parts = msg.strip().split(" ", maxsplit=5)
-        if len(parts) < 4:
-            return (
-                "",
-                "",
-                "",
-            ), "Error: message didn't comply with any known MODE formats"
-
-        channel = parts[2]
-        flags = parts[3]
-        param = parts[4] if len(parts) >= 5 else ""
-
-        return (channel, flags, param), None
 
 
 class BotRunner:
@@ -146,24 +98,37 @@ class BotRunner:
         server_id = msg.split(":")[1]
         self.client.pong(server_id)
 
+    @_on_response("001")  # numeric of Welcome is 001
+    def _handle_welcome(self, msg: str) -> None:
+        self.client.join_channels()
+        self.client.query_self()
+
+    @_on_response("319")  # numeric for RPL_WHOISCHANNELS
+    def _handle_whois_channels(self, msg: str) -> None:
+        (user, channels), err = MessageParser.get_whois_channels_data(msg)
+        if err:
+            print(err)
+            return None
+
+        if user == self.client.nick:
+            for chan in channels:
+                # clean up chan name to include only #<chan_name> format
+                chan_clean = chan[chan.find("#") :] if chan.find("#") != -1 else chan
+                self.client.set_op_state(chan_clean, chan.startswith("@"))
+
     @_on_response("352")  # numeric of WHO is 352
     def _handle_who(self, msg: str) -> None:
         print("WHO received")
 
-    @_on_response("001")  # numeric of Welcome is 001
-    def _handle_welcome(self, msg: str) -> None:
-        self.client.join_channels()
-
     @_on_response("MODE")
     def _handle_mode(self, msg) -> None:
-        (channel, flag, param), err = _MessageParser.get_mode_data(msg)
+        (channel, flag, param), err = MessageParser.get_mode_data(msg)
         if err:
             print(err)  # TODO: Proper error handling
+            return None
 
         if "o" in flag and param == self.client.nick:
             self.client.set_op_state(channel, flag == "+o")
-
-        print(self.client.op_state)
 
     def run_forever(self) -> None:
         """
@@ -180,8 +145,9 @@ class BotRunner:
             if not msg:
                 self.client.reconnect()
 
-            for line in _MessageParser.parse_lines(raw_msg):
+            for line in MessageParser.parse_lines(raw_msg):
                 self._handle_ping(line)
                 self._handle_welcome(line)
                 self._handle_who(line)
+                self._handle_whois_channels(line)
                 self._handle_mode(line)
