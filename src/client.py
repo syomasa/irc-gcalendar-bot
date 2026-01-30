@@ -79,6 +79,10 @@ class IRCClient:
         self.realname: str = self.config.REALNAME
         self.chan: list[str] = self.config.CHAN
 
+        # dictionary with key being channel name and value
+        # indicating if client is channel operator or not
+        self.op_state: dict[str, bool] = {key: False for key in self.chan}
+
         if proxy:
             raise NotImplementedError
             # self.proxy_server: str = self.config.PROXY_SERVER
@@ -183,3 +187,7 @@ class IRCClient:
         response separately
         """
         self.socket.sendall(f"WHO {channel}\r\n".encode("utf-8"))
+
+    @require_connection
+    def set_op_state(self, channel: str, value: bool):
+        self.op_state[channel] = value

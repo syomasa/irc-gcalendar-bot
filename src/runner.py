@@ -81,6 +81,37 @@ class _MessageParser:
         for line in msg_decoded.split("\r\n"):
             yield line
 
+    @staticmethod
+    def get_mode_data(msg) -> tuple[tuple[str, str, str], str | None]:
+        """
+        Utility for obtaining information about MODE response.
+        returns tuple with 3 elements where:
+            0: channel where MODE was changed
+            1: what mode was added or removed (check RFC2812 for more information)
+            2: parameter attached to a flag, in case +o this is username,
+                some commands take no parameters like +s/-s then function returns empty string
+            3: error this is None if otherwise string telling reason.
+
+        Additionally functions returns error which is None on valid message and
+        error message if not.
+
+        NOTE: This method assumes that MODE response code is already received
+              so we are only parsing already valid MODE response
+        """
+        parts = msg.strip().split(" ", maxsplit=5)
+        if len(parts) < 4:
+            return (
+                "",
+                "",
+                "",
+            ), "Error: message didn't comply with any known MODE formats"
+
+        channel = parts[2]
+        flags = parts[3]
+        param = parts[4] if len(parts) >= 5 else ""
+
+        return (channel, flags, param), None
+
 
 class BotRunner:
     """
@@ -121,7 +152,18 @@ class BotRunner:
 
     @_on_response("001")  # numeric of Welcome is 001
     def _handle_welcome(self, msg: str) -> None:
-        print("WELCOME received")
+        self.client.join_channels()
+
+    @_on_response("MODE")
+    def _handle_mode(self, msg) -> None:
+        (channel, flag, param), err = _MessageParser.get_mode_data(msg)
+        if err:
+            print(err)  # TODO: Proper error handling
+
+        if "o" in flag and param == self.client.nick:
+            self.client.set_op_state(channel, flag == "+o")
+
+        print(self.client.op_state)
 
     def run_forever(self) -> None:
         """
@@ -142,3 +184,4 @@ class BotRunner:
                 self._handle_ping(line)
                 self._handle_welcome(line)
                 self._handle_who(line)
+                self._handle_mode(line)
