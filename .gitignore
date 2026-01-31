@@ -146,6 +146,7 @@ venv.bak/
 config.json
 pyrightconfig.local.json
 pyrightconfig.json
+client_secret.json
 
 # Spyder project settings
 .spyderproject
